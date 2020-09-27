@@ -482,8 +482,20 @@ impl AudioUnit {
         // Pre-allocate a buffer list for input stream.
         //
         // First, get the current buffer size for pre-allocating the `AudioBuffer`s.
-        let id = sys::kAudioDevicePropertyBufferFrameSize;
-        let mut buffer_frame_size: u32 = self.get_property(id, Scope::Global, Element::Output)?;
+        #[cfg(target_os = "macos")]
+        let mut buffer_frame_size: u32 = {
+            let id = sys::kAudioDevicePropertyBufferFrameSize;
+            let buffer_frame_size: u32 = self.get_property(id, Scope::Global, Element::Output)?;
+            buffer_frame_size
+        };
+        #[cfg(target_os = "ios")]
+        let mut buffer_frame_size: u32 = {
+            let id = sys::kAudioSessionProperty_CurrentHardwareIOBufferDuration;
+            let seconds: f32 = self.get_property(id, Scope::Global, Element::Output)?;
+            let id = sys::kAudioSessionProperty_CurrentHardwareSampleRate;
+            let sample_rate: f64 = self.get_property(id, Scope::Global, Element::Output)?;
+            (sample_rate * seconds as f64).round() as u32
+        };
         let mut data: Vec<u8> = vec![];
         let sample_bytes = stream_format.sample_format.size_in_bytes();
         let n_channels = stream_format.channels_per_frame;

@@ -171,6 +171,15 @@ impl AudioUnit {
         }
     }
 
+    pub fn initialize(&mut self) -> Result<(), Error> {
+        unsafe { try_os_status!(sys::AudioUnitInitialize(self.instance)); }
+        Ok(())
+    }
+    pub fn uninitialize(&mut self) -> Result<(), Error> {
+        unsafe { try_os_status!(sys::AudioUnitUninitialize(self.instance)); }
+        Ok(())
+    }
+
     /// Sets the value for some property of the **AudioUnit**.
     ///
     /// To clear an audio unit property value, set the data paramater with `None::<()>`.
@@ -371,6 +380,23 @@ pub fn get_property<T>(
         let size_ptr = &mut size as *mut _;
         try_os_status!(
             sys::AudioUnitGetProperty(au, id, scope, elem, data_ptr, size_ptr)
+        );
+        Ok(data)
+    }
+}
+
+pub fn audio_session_get_property<T>(
+    id: u32,
+) -> Result<T, Error>
+{
+    let mut size = ::std::mem::size_of::<T>() as u32;
+    unsafe {
+        let mut data: T = ::std::mem::uninitialized();
+        let data_ptr = &mut data as *mut _ as *mut c_void;
+        let size_ptr = &mut size as *mut _;
+        println!("get {}", id);
+        try_os_status!(
+            sys::AudioSessionGetProperty(id, size_ptr, data_ptr)
         );
         Ok(data)
     }

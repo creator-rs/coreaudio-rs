@@ -7,6 +7,7 @@ use sys;
 
 pub use self::action_flags::ActionFlags;
 pub use self::data::Data;
+use audio_unit::audio_session_get_property;
 
 
 /// When `set_render_callback` is called, a closure of this type will be used to wrap the given
@@ -198,6 +199,7 @@ pub mod data {
         where S: Sample,
     {
         fn does_stream_format_match(format: &StreamFormat) -> bool {
+            println!("sample_format={:#?} other={:#?}", S::sample_format(), format);
             // TODO: This is never set, even though the default ABSD on OS X is non-interleaved!
             // Should really investigate why this is.
             // format.flags.contains(linear_pcm_flags::IS_NON_INTERLEAVED) &&
@@ -477,10 +479,12 @@ impl AudioUnit {
         // let asbd = stream_format.to_asbd();
 
         // If the stream format does not match, return an error indicating this.
+        println!("test");
         if !D::does_stream_format_match(&stream_format) {
             return Err(Error::RenderCallbackBufferFormatDoesNotMatchAudioUnitStreamFormat);
         }
 
+        println!("hm");
         // Pre-allocate a buffer list for input stream.
         //
         // First, get the current buffer size for pre-allocating the `AudioBuffer`s.
@@ -493,11 +497,15 @@ impl AudioUnit {
         #[cfg(target_os = "ios")]
         let mut buffer_frame_size: u32 = {
             let id = sys::kAudioSessionProperty_CurrentHardwareIOBufferDuration;
-            let seconds: f32 = self.get_property(id, Scope::Global, Element::Output)?;
+            let seconds: f32 = super::audio_session_get_property(id)?;
+            println!("buffer duration seconds = {}", seconds);
             let id = sys::kAudioSessionProperty_CurrentHardwareSampleRate;
-            let sample_rate: f64 = self.get_property(id, Scope::Global, Element::Output)?;
+            let sample_rate: f64 = super::audio_session_get_property(id)?;
+            //self.get_property(id, Scope::Global, Element::Output)?;
+            println!("sample rate = {}", sample_rate);
             (sample_rate * seconds as f64).round() as u32
         };
+        println!("cool");
         let mut data: Vec<u8> = vec![];
         let sample_bytes = stream_format.sample_format.size_in_bytes();
         let n_channels = stream_format.channels_per_frame;

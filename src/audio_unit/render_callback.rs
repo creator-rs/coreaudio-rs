@@ -7,6 +7,8 @@ use sys;
 
 pub use self::action_flags::ActionFlags;
 pub use self::data::Data;
+
+#[cfg(target_os = "ios")]
 use audio_unit::audio_session_get_property;
 
 
@@ -54,6 +56,7 @@ pub mod data {
     use super::super::StreamFormat;
     use super::super::Sample;
     use sys;
+    use audio_unit::audio_format::LinearPcmFlags;
 
     /// Audio data wrappers specific to the `AudioUnit`'s `AudioFormat`.
     pub trait Data {
@@ -202,7 +205,7 @@ pub mod data {
             println!("sample_format={:#?} other={:#?}", S::sample_format(), format);
             // TODO: This is never set, even though the default ABSD on OS X is non-interleaved!
             // Should really investigate why this is.
-            // format.flags.contains(linear_pcm_flags::IS_NON_INTERLEAVED) &&
+            format.flags.contains(LinearPcmFlags::IS_NON_INTERLEAVED) &&
                 S::sample_format().does_match_flags(format.flags)
         }
 
@@ -400,7 +403,7 @@ impl AudioUnit {
         // First, we'll retrieve the stream format so that we can ensure that the given callback
         // format matches the audio unit's format.
         let id = sys::kAudioUnitProperty_StreamFormat;
-        let asbd = try!(self.get_property(id, Scope::Output, Element::Output));
+        let asbd = try!(self.get_property(id, Scope::Input, Element::Output));
         let stream_format = super::StreamFormat::from_asbd(asbd)?;
 
         // If the stream format does not match, return an error indicating this.
@@ -547,7 +550,7 @@ impl AudioUnit {
                 unsafe {
                     // Retrieve the up-to-date stream format.
                     let id = sys::kAudioUnitProperty_StreamFormat;
-                    let asbd = match super::get_property(audio_unit, id, Scope::Input, Element::Output) {
+                    let asbd = match super::get_property(audio_unit, id, Scope::Output, Element::Input) {
                         Err(err) => return err.to_os_status(),
                         Ok(asbd) => asbd,
                     };

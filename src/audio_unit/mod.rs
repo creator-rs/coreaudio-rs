@@ -385,6 +385,7 @@ pub fn get_property<T>(
     }
 }
 
+#[cfg(target_os = "ios")]
 pub fn audio_session_get_property<T>(
     id: u32,
 ) -> Result<T, Error>

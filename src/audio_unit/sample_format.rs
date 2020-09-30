@@ -23,6 +23,10 @@ impl SampleFormat {
         }
     }
 
+    #[deprecated(
+        since = "0.10.0",
+        note = "Use from_flags_and_bits_per_channel. SampleFormat cannot be accurately determined from bytes_per_frame."
+    )]
     pub fn from_flags_and_bytes_per_frame(flags: audio_format::LinearPcmFlags,
                                           bytes_per_frame: u32) -> Option<Self>
     {
@@ -36,6 +40,25 @@ impl SampleFormat {
                 4 => SampleFormat::I32,
                 _ => return None,
             }
+        })
+    }
+
+    pub fn from_flags_and_bits_per_channel(flags: audio_format::LinearPcmFlags,
+                                          bits_per_channel: u32) -> Option<Self>
+    {
+        Some(if flags.contains(LinearPcmFlags::IS_FLOAT) {
+            SampleFormat::F32
+        } else if flags.contains(LinearPcmFlags::IS_SIGNED_INTEGER) {
+            // bits_per_channel should be the same value regardless of IS_PACKED
+            match bits_per_channel {
+                8 => SampleFormat::I8,
+                16 => SampleFormat::I16,
+                32 => SampleFormat::I32,
+                _ => return None,
+            }
+        } else {
+            // TODO: Support unsigned ints
+            return None;
         })
     }
 

@@ -15,8 +15,8 @@ use sys;
 /// Seeing as `LinearPCM` data (the `AudioFormat` used by the `AudioUnit` API) implies a single
 /// frame per packet, we can infer many of the fields in an ASBD from the sample type.
 ///
-/// `bytes_per_packet` = size_of::<S>()
-/// `bytes_per_frame` = size_of::<S>()
+/// `bytes_per_packet` = samples_per_frame * size_of::<S>()
+/// `bytes_per_frame` = samples_per_frame * size_of::<S>()
 /// `frames_per_packet` = 1
 /// `bits_per_channel` = size_of::<S>() * 8
 ///
@@ -73,7 +73,7 @@ impl StreamFormat {
             mSampleRate,
             mFormatID,
             mFormatFlags,
-            mBytesPerFrame,
+            mBitsPerChannel,
             mChannelsPerFrame,
             ..
         } = asbd;
@@ -85,7 +85,7 @@ impl StreamFormat {
         };
 
         // Determine the `SampleFormat` to use.
-        let sample_format = match SampleFormat::from_flags_and_bytes_per_frame(flags, mBytesPerFrame) {
+        let sample_format = match SampleFormat::from_flags_and_bits_per_channel(flags, mBitsPerChannel) {
             Some(sample_format) => sample_format,
             None => return Err(NOT_SUPPORTED),
         };
@@ -93,7 +93,7 @@ impl StreamFormat {
         Ok(StreamFormat {
             sample_rate: mSampleRate,
             flags: flags,
-            sample_format: sample_format,
+            sample_format,
             channels_per_frame: mChannelsPerFrame,
         })
     }
@@ -111,10 +111,17 @@ impl StreamFormat {
 
         let flag = maybe_flag.unwrap_or(::std::u32::MAX -2147483647);
 
-        let bytes_per_frame = sample_format.size_in_bytes() as u32;
+        // A sample is single numerical value for a single audio channel in an audio stream.
+        let samples_per_frame = if (flag & sys::kAudioFormatFlagIsNonInterleaved) != 0 { 1 } else { channels_per_frame };
+        let bytes_per_sample = sample_format.size_in_bytes() as u32;
+        // A frame is a collection of time-coincident samples. For instance, a linear PCM stereo sound
+        // file has two samples per frame, one for the left channel and one for the right channel.
+        // Note that as above, if the stream format is non-interleaved, then the channels come in
+        // different buffers. 1 channel per buffer means that a frame only has 1 sample and not N.
+        let bytes_per_frame = bytes_per_sample * samples_per_frame;
         const FRAMES_PER_PACKET: u32 = 1;
         let bytes_per_packet = bytes_per_frame * FRAMES_PER_PACKET;
-        let bits_per_channel = bytes_per_frame * 8;
+        let bits_per_channel = bytes_per_sample * 8;
 
         sys::AudioStreamBasicDescription {
             mSampleRate: sample_rate,

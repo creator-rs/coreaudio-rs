@@ -86,45 +86,45 @@ pub mod data {
     // the audio as non-interleaved samples anyway. Investigate this, as it might not even be
     // possible to use this type with audio units!
     //
-    // /// An interleaved linear PCM buffer with samples of type `S`.
-    // pub struct Interleaved<'a, S> {
-    //     pub buffer: &'a mut [S],
-    //     pub channels: usize,
-    // }
+    /// An interleaved linear PCM buffer with samples of type `S`.
+    pub struct Interleaved<'a, S> {
+        pub buffer: &'a mut [S],
+        pub channels: usize,
+    }
 
-    // // Implementation for an interleaved linear PCM audio format.
-    // impl<'a, S> Data for Interleaved<'a, S>
-    //     where S: Sample,
-    // {
-    //     fn does_stream_format_match(format: &StreamFormat) -> bool {
-    //         !format.flags.contains(linear_pcm_flags::IS_NON_INTERLEAVED) &&
-    //             S::sample_format().does_match_flags(format.flags)
-    //     }
+    // Implementation for an interleaved linear PCM audio format.
+    impl<'a, S> Data for Interleaved<'a, S>
+        where S: Sample,
+    {
+        fn does_stream_format_match(format: &StreamFormat) -> bool {
+            !format.flags.contains(LinearPcmFlags::IS_NON_INTERLEAVED) &&
+                S::sample_format().does_match_flags(format.flags)
+        }
 
-    //     #[allow(non_snake_case)]
-    //     unsafe fn from_input_proc_args(frames: u32, io_data: *mut sys::AudioBufferList) -> Self {
-    //         // We're expecting a single interleaved buffer which will be the first in the array.
-    //         let sys::AudioBuffer { mNumberChannels, mDataByteSize, mData } = (*io_data).mBuffers[0];
+        #[allow(non_snake_case)]
+        unsafe fn from_input_proc_args(frames: u32, io_data: *mut sys::AudioBufferList) -> Self {
+            // We're expecting a single interleaved buffer which will be the first in the array.
+            let sys::AudioBuffer { mNumberChannels, mDataByteSize, mData } = (*io_data).mBuffers[0];
 
-    //         // Ensure that the size of the data matches the size of the sample format
-    //         // multiplied by the number of frames.
-    //         //
-    //         // TODO: Return an Err instead of `panic`ing.
-    //         let buffer_len = frames as usize * mNumberChannels as usize;
-    //         let expected_size = ::std::mem::size_of::<S>() * buffer_len;
-    //         assert!(mDataByteSize as usize == expected_size);
+            // Ensure that the size of the data matches the size of the sample format
+            // multiplied by the number of frames.
+            //
+            // TODO: Return an Err instead of `panic`ing.
+            let buffer_len = frames as usize * mNumberChannels as usize;
+            let expected_size = ::std::mem::size_of::<S>() * buffer_len;
+            assert!(mDataByteSize as usize == expected_size);
 
-    //         let buffer: &mut [S] = {
-    //             let buffer_ptr = mData as *mut S;
-    //             slice::from_raw_parts_mut(buffer_ptr, buffer_len)
-    //         };
+            let buffer: &mut [S] = {
+                let buffer_ptr = mData as *mut S;
+                slice::from_raw_parts_mut(buffer_ptr, buffer_len)
+            };
 
-    //         Interleaved {
-    //             buffer: buffer,
-    //             channels: mNumberChannels as usize,
-    //         }
-    //     }
-    // }
+            Interleaved {
+                buffer: buffer,
+                channels: mNumberChannels as usize,
+            }
+        }
+    }
 
     /// A wrapper around the pointer to the `mBuffers` array.
     pub struct NonInterleaved<S> {

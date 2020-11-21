@@ -22,4 +22,4 @@ core_midi = ["coreaudio-sys/core_midi"]
 
 [dependencies]
 bitflags = "1.0"
-coreaudio-sys = { git = "https://github.com/RustAudio/coreaudio-sys", branch = "master" }
+coreaudio-sys = { git = "https://github.com/creator-rs/coreaudio-sys", branch = "master" }
